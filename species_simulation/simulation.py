@@ -30,6 +30,23 @@ import yaml
 # 					}
 
 
+def yaml_parser(yaml):
+	f = open('config.txt')
+	data = f.read()
+	output = yaml.load(data)
+	return output
+
+def dice_roller(percentage):
+	'''
+		given the probability of an event occuring, returns True if 
+		event is successful
+	'''
+	chance = random.random()
+	percentage = percentage / 100.0
+	if chance <= percentage:
+		return True
+	else:
+		return False
 
 class Animal:
 	def __init__(self, species, monthly_food_consumption, monthly_water_consumption, 
@@ -39,9 +56,11 @@ class Animal:
 		self.monthly_food_consumption = monthly_food_consumption
 		self.monthly_water_consumption = monthly_water_consumption
 		self.life_span_years = life_span
+		self.minimum_breeding_age_years = minimum_breeding_age
+		self.maximum_breeding_age_years = maximum_breeding_age
 		self.life_span = self.life_span_years * 12 #all time units converted to months
-		self.minimum_breeding_age = minimum_breeding_age * 12
-		self.maximum_breeding_age = maximum_breeding_age * 12
+		self.minimum_breeding_age = self.minimum_breeding_age_years * 12
+		self.maximum_breeding_age = self.maximum_breeding_age_years * 12
 		self.gestation_period = gestation_period
 		self.minimum_temperature = minimum_temperature
 		self.maximum_temperature = maximum_temperature
@@ -56,8 +75,7 @@ class Animal:
 		self.months_without_water = 0
 		self.months_without_food = 0
 		self.months_of_extreme_temperature = 0
-		self.fertility_rate = 90
-
+		self.fertility_rate = 80 #TODO: this value is made up for now
 
 
 
@@ -145,8 +163,8 @@ class Habitat:
 									animal.monthly_food_consumption,
 									animal.monthly_water_consumption,
 									animal.life_span_years,
-									animal.minimum_breeding_age,
-									animal.maximum_breeding_age,
+									animal.minimum_breeding_age_years,
+									animal.maximum_breeding_age_years,
 									animal.gestation_period,
 									animal.minimum_temperature,
 									animal.maximum_temperature
@@ -174,20 +192,20 @@ class Habitat:
 				if animal.age > animal.life_span:
 					animal.living = False
 					animal.cause_of_death = 'age'
-				elif animal.months_without_water == 2:
+				elif animal.months_without_water > 1:
 					animal.living = False
 					animal.cause_of_death = 'thirst'
-				elif animal.months_without_food == 4:
+				elif animal.months_without_food > 3:
 					animal.living = False
 					animal.cause_of_death = 'starvation'
 				elif self.temperature > animal.maximum_temperature:
 					animal.months_of_extreme_temperature += 1
-					if animal.months_of_extreme_temperature == 2:
+					if animal.months_of_extreme_temperature > 1:
 						animal.living = False
 						animal.cause_of_death = 'hot_weather'
 				elif self.temperature < animal.minimum_temperature:
 					animal.months_of_extreme_temperature += 1
-					if animal.months_of_extreme_temperature == 2:
+					if animal.months_of_extreme_temperature > 1:
 						animal.living = False
 						animal.cause_of_death = 'cold_weather'
 				else:
@@ -196,23 +214,7 @@ class Habitat:
 		self.population_record.append(living_count)
 
 
-def yaml_parser(yaml):
-	f = open('config.txt')
-	data = f.read()
-	output = yaml.load(data)
-	return output
 
-def dice_roller(percentage):
-	'''
-		given the probability of an event occuring, returns True if 
-		event is successful
-	'''
-	chance = random.random()
-	percentage = percentage / 100.0
-	if chance <= percentage:
-		return True
-	else:
-		return False
 
 def current_season(month):
 	'''
@@ -267,6 +269,7 @@ def results_generator(species,habitat):
 	death_by_thirst = 0
 	death_by_cold = 0
 	death_by_heat = 0
+
 	for animal in habitat.population:
 		if not animal.living:
 			number_of_dead += 1
@@ -280,11 +283,11 @@ def results_generator(species,habitat):
 				death_by_cold += 1
 			elif animal.cause_of_death == 'hot_weather':
 				death_by_heat += 1
+
 	for cause_of_death in ([death_by_heat, death_by_cold, death_by_thirst, 
 							death_by_starvation, death_by_age]):
 		cause_of_death = percentage_converter(cause_of_death, number_of_dead)
-	print "number_of_dead", number_of_dead
-	print "len(habitat.population: ", len(habitat.population)
+
 	mortality_rate = number_of_dead / float( len(habitat.population))
 	results = {habitat_type : {
 								'Average Population' : average_population,
@@ -300,6 +303,12 @@ def results_generator(species,habitat):
 				}
 	return results
 
+def results_composition():
+	'''
+		aggregates data for each species/habitat, returns averages
+	'''
+
+	
 def simulation_runner():
 	'''
 	Main function of the simulator, calls functions to parse and run data
@@ -313,30 +322,31 @@ def simulation_runner():
 		print name
 		animal_results = []
 		for habitat in data['habitats']:
-			environment = Habitat(habitat['name'], 
-								  habitat['monthly_food'],
-								  habitat['monthly_water'], 
-								  habitat['average_temperature']['summer'],
-								  habitat['average_temperature']['spring'],
-								  habitat['average_temperature']['fall'],
-								  habitat['average_temperature']['winter'],
-								  )
-			for gender_code in [1,2]: #create initial male and female
-				new_animal = Animal(species['name'],
-									species['attributes']['monthly_food_consumption'],
-									species['attributes']['monthly_water_consumption'],
-									species['attributes']['life_span'],
-									species['attributes']['minimum_breeding_age'],
-									species['attributes']['maximum_breeding_age'],
-									species['attributes']['gestation_period'],
-									species['attributes']['minimum_temperature'],
-									species['attributes']['maximum_temperature'],
-									gender=gender_code
-									)
-				environment.population.append(new_animal)
-			for month in range(months):
-				monthly_tasks(month, environment)
-			animal_results.append(results_generator(species, environment))
+			for i, iteration in enumerate(range(iterations)):
+				environment = Habitat(habitat['name'], 
+									  habitat['monthly_food'],
+									  habitat['monthly_water'], 
+									  habitat['average_temperature']['summer'],
+									  habitat['average_temperature']['spring'],
+									  habitat['average_temperature']['fall'],
+									  habitat['average_temperature']['winter'],
+									  )
+				for gender_code in [1,2]: #create initial male and female
+					new_animal = Animal(species['name'],
+										species['attributes']['monthly_food_consumption'],
+										species['attributes']['monthly_water_consumption'],
+										species['attributes']['life_span'],
+										species['attributes']['minimum_breeding_age'],
+										species['attributes']['maximum_breeding_age'],
+										species['attributes']['gestation_period'],
+										species['attributes']['minimum_temperature'],
+										species['attributes']['maximum_temperature'],
+										gender=gender_code
+										)
+					environment.population.append(new_animal)
+				for month in range(months):
+					monthly_tasks(month, environment)
+				animal_results.append(results_generator(species, environment))
 		print yaml.dump(animal_results)
 
 
