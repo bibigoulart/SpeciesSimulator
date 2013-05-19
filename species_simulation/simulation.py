@@ -258,57 +258,64 @@ def percentage_converter(part, whole):
 	percentage = round(part/float(whole) * 100.0, 2)
 	return percentage
 
-def results_generator(species,habitat):
+def results_generator(species,habitat,iteration_results,months,iterations):
+	'''
+		iteration_results should consist of a list of completed habitats, returns dictionary of results
+	'''
 	animal_type = species['name']
 	habitat_type = habitat.name
-	average_population = sum(habitat.population_record) / len(habitat.population_record)
-	max_population = max(habitat.population_record)
+	total_population = 0
+	max_population = max([max(environment.population_record) for environment in iteration_results])
+	for environment in iteration_results:
+		total_population += sum(environment.population_record)
+	average_population = total_population / (months * iterations)
+
 	number_of_dead = 0
 	death_by_age = 0
 	death_by_starvation = 0
 	death_by_thirst = 0
 	death_by_cold = 0
 	death_by_heat = 0
+	total_animals = 0
+	for environment in iteration_results:
+		total_animals += len(environment.population)
+		for animal in environment.population:
+			if not animal.living:
+				number_of_dead += 1
+				if animal.cause_of_death == 'age':
+					death_by_age += 1
+				elif animal.cause_of_death == 'starvation':
+					death_by_starvation += 1
+				elif animal.cause_of_death == 'thirst':
+					death_by_thirst += 1
+				elif animal.cause_of_death == 'cold_weather':
+					death_by_cold += 1
+				elif animal.cause_of_death == 'hot_weather':
+					death_by_heat += 1
+		for cause_of_death in ([death_by_heat, death_by_cold, death_by_thirst, 
+								death_by_starvation, death_by_age]):
+			cause_of_death = percentage_converter(cause_of_death, number_of_dead)
 
-	for animal in habitat.population:
-		if not animal.living:
-			number_of_dead += 1
-			if animal.cause_of_death == 'age':
-				death_by_age += 1
-			elif animal.cause_of_death == 'starvation':
-				death_by_starvation += 1
-			elif animal.cause_of_death == 'thirst':
-				death_by_thirst += 1
-			elif animal.cause_of_death == 'cold_weather':
-				death_by_cold += 1
-			elif animal.cause_of_death == 'hot_weather':
-				death_by_heat += 1
-
-	for cause_of_death in ([death_by_heat, death_by_cold, death_by_thirst, 
-							death_by_starvation, death_by_age]):
-		cause_of_death = percentage_converter(cause_of_death, number_of_dead)
-
-	mortality_rate = number_of_dead / float( len(habitat.population))
+	mortality_rate = str(round(number_of_dead / float(total_animals) * 100, 2)) + '%'
+	causes_of_death = {'age' : death_by_age,
+						'starvation' : death_by_starvation,
+						'thirst' : death_by_thirst,
+						'hot_weather' : death_by_heat,
+						'cold_weather' : death_by_cold
+						}
+	for cause, count in causes_of_death.iteritems():
+		causes_of_death[cause] = str(percentage_converter(count, number_of_dead)) + '%'
 	results = {habitat_type : {
 								'Average Population' : average_population,
 								'Max Population' : max_population,
 								'Mortality Rate' : mortality_rate,
-								'Cause of Death' : {'age' : death_by_age,
-													'starvation' : death_by_starvation,
-													'thirst' : death_by_thirst,
-													'hot_weather' : death_by_heat,
-													'cold_weather' : death_by_cold
-													}
+								'Cause of Death' : causes_of_death
 								}
 				}
 	return results
 
-def results_composition():
-	'''
-		aggregates data for each species/habitat, returns averages
-	'''
 
-	
+
 def simulation_runner():
 	'''
 	Main function of the simulator, calls functions to parse and run data
@@ -317,11 +324,13 @@ def simulation_runner():
 	months = data['years'] * 12
 	iterations = data['iterations']
 	results = {}
+	results['Conditions'] = "Simulation ran for {0} iterations at {1} years per iteration".format(iterations, data['years'])
 	for species in data['species']:
 		name = species['name']
-		print name
 		animal_results = []
+		habitat_population_tracker = [] #will keep track of populations over iterations
 		for habitat in data['habitats']:
+			iteration_results = []
 			for i, iteration in enumerate(range(iterations)):
 				environment = Habitat(habitat['name'], 
 									  habitat['monthly_food'],
@@ -346,13 +355,15 @@ def simulation_runner():
 					environment.population.append(new_animal)
 				for month in range(months):
 					monthly_tasks(month, environment)
-				animal_results.append(results_generator(species, environment))
-		print yaml.dump(animal_results)
+				iteration_results.append(environment)
+			animal_results.append(results_generator(species, environment, iteration_results, months, iterations))
+		results[name] = animal_results
+	return yaml.dump(results, default_flow_style=False)
 
 
 
 
-simulation_runner()
+print simulation_runner()
 
 
 
