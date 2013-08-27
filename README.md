@@ -2,7 +2,8 @@ SpeciesSimulator
 ================
 
 This was a coding challenge I was given which I had some fun with and learned a bit on.  The given parameters made it somewhat impossible for kangaroos to survive, but no one really likes kangaroos anyway.
---------------------------
+
+****************************
 
 
 	Task: create an application that imports the provided YAML config file (which contains Control, Species and Habitat parameters) and then simulates the passage of time for each species in each habitat.

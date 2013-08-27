@@ -31,9 +31,9 @@ import yaml
 
 
 def yaml_parser(yaml):
-	f = open('config.txt')
-	data = f.read()
-	output = yaml.load(data)
+	with open('config.txt') as f:
+		data = f.read()
+		output = yaml.load(data)
 	return output
 
 def dice_roller(percentage):
@@ -360,14 +360,5 @@ def simulation_runner():
 		results[name] = animal_results
 	return yaml.dump(results, default_flow_style=False)
 
-
-
-
-print simulation_runner()
-
-
-
-
-
-
-
+if __name__ == '__main__':
+	print simulation_runner()
