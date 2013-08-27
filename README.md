@@ -8,7 +8,6 @@ This was a coding challenge I was given which I had some fun with and learned a 
 Task: create an application that imports the provided YAML config file (which contains Control, Species and Habitat parameters) and then simulates the passage of time for each species in each habitat.
 
 At the end of each run, provide the following data:
-
 	- Species
 	- Habitat:
 			1. Average Population: x
@@ -21,6 +20,7 @@ At the end of each run, provide the following data:
 				- x% hot_weather
 		
 Rules/Notes:
+
 	- Passage of Time:
 		- The passage of time should be in months.  Animals only eat/drink/mate/die at 1 month intervals & habitats only refresh their food/water/temperature at 1 month intervals.
 		- The Years value in the config should control how many years the simulation should run.
