@@ -8,6 +8,7 @@ This was a coding challenge I was given which I had some fun with and learned a 
 Task: create an application that imports the provided YAML config file (which contains Control, Species and Habitat parameters) and then simulates the passage of time for each species in each habitat.
 
 At the end of each run, provide the following data:
+
 	- Species
 	- Habitat:
 			1. Average Population: x
