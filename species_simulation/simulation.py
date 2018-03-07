@@ -44,13 +44,18 @@ def dice_roller(percentage):
     '''
     chance = random.random()
     percentage = percentage / 100.0
-    if chance <= percentage:
-        return True
-    else:
-        return False
+    return chance <= percentage
+
+
+def assign_gender():
+    '''
+        randomly assigns male/female to animal
+    '''
+    return random.choice(["female", "male"])
 
 
 class Animal:
+
     def __init__(self, species, monthly_food_consumption, monthly_water_consumption,
                  life_span, minimum_breeding_age, maximum_breeding_age, gestation_period,
                  minimum_temperature, maximum_temperature, gender=None):
@@ -68,16 +73,16 @@ class Animal:
         self.maximum_temperature = maximum_temperature
         self.age = 0
         self.living = True
-        if gender:  # 1 is female, 2 is male
+        if gender:
             self.gender = gender
         else:
-            self.gender = random.randint(1, 2)
+            self.gender = assign_gender()  # randomized gender
         self.pregnant = {'pregnant': False, 'months': 0}
         self.cause_of_death = None
         self.months_without_water = 0
         self.months_without_food = 0
         self.months_of_extreme_temperature = 0
-        self.fertility_rate = 80  # TODO: this value is made up for now
+        self.fertility_rate = 80  # TODO: this value is made up for now as per instructions
 
 
 class Habitat:
@@ -100,9 +105,7 @@ class Habitat:
         sets temperature which fluctuates by up to 5 degrees, with a
         1/200 chance of fluctuating by up to 15 degrees
         '''
-        multiplier = 1
-        if dice_roller(.5):
-            multiplier = 3
+        multiplier = 3 if dice_roller(.5) else 1
         fluctuation = random.randint(-5, 5) * multiplier
         if season == 'summer':
             self.temperature = self.summer_temp + fluctuation
@@ -151,12 +154,12 @@ class Habitat:
         babies = []
         male_available = False
         for animal in self.population:
-            if animal.gender == 2 and animal.age >= animal.minimum_breeding_age:
+            if animal.gender == "male" and animal.age >= animal.minimum_breeding_age:
                 #check for at least one male of age
                 male_available = True
                 break
         for animal in self.population:
-            if animal.gender == 1 and animal.living:
+            if animal.gender == "female" and animal.living:
                 if animal.pregnant['pregnant'] and (animal.pregnant['months'] >= animal.gestation_period):
                     animal.pregnant = {'pregnant': False, 'months': 0}
                     new_animal = Animal(
@@ -215,9 +218,11 @@ class Habitat:
         self.population_record.append(living_count)
 
 
-def current_season(month):
+def get_season(month):
     '''
-        given month number, returns season
+        returns season of year based on given month
+        :param month: month of the year as an integer (1-12)
+        :returns: string with season of year
     '''
     month_of_year = month % 12
     if month_of_year == 0:
@@ -241,8 +246,8 @@ def current_season(month):
     return season
 
 
-def monthly_tasks(month, environment):
-    season = current_season(month)
+def execute_monthly_tasks(month, environment):
+    season = get_season(month)
     environment.refresh_food_and_water()
     environment.set_temperature(season)
     environment.kill_the_weak()
@@ -251,21 +256,24 @@ def monthly_tasks(month, environment):
     environment.age_animals()
 
 
-def percentage_converter(part, whole):
+def create_percentage_of_whole(part, whole):
     '''
     converts to a percentage to two decimal places
+    :param part: numerator of fraction
+    :param whole: denominator of fraction
+    :returns: percentage rounded to two decimal places comparing part to whole
     '''
-    percentage = round(part/float(whole) * 100.0, 2)
-    return percentage
+    return round(part/float(whole) * 100.0, 2)
 
 
-def results_generator(species, habitat, iteration_results, months, iterations):
+def generate_results(species, habitat, iteration_results, months, iterations):
     '''
         iteration_results should consist of a list of completed habitats, returns dictionary of results
     '''
     animal_type = species['name']
     habitat_type = habitat.name
     total_population = 0
+    # find maximum of each population_record, then take the maximum of those sets
     max_population = max([max(environment.population_record) for environment in iteration_results])
     for environment in iteration_results:
         total_population += sum(environment.population_record)
@@ -295,7 +303,7 @@ def results_generator(species, habitat, iteration_results, months, iterations):
                     death_by_heat += 1
         for cause_of_death in ([death_by_heat, death_by_cold, death_by_thirst,
                                 death_by_starvation, death_by_age]):
-            cause_of_death = percentage_converter(cause_of_death, number_of_dead)
+            cause_of_death = create_percentage_of_whole(cause_of_death, number_of_dead)
 
     mortality_rate = str(round(number_of_dead / float(total_animals) * 100, 2)) + '%'
     causes_of_death = {'age': death_by_age,
@@ -305,7 +313,7 @@ def results_generator(species, habitat, iteration_results, months, iterations):
                        'cold_weather': death_by_cold
                        }
     for cause, count in causes_of_death.iteritems():
-        causes_of_death[cause] = str(percentage_converter(count, number_of_dead)) + '%'
+        causes_of_death[cause] = str(create_percentage_of_whole(count, number_of_dead)) + '%'
     results = {habitat_type: {
         'Average Population': average_population,
         'Max Population': max_population,
@@ -323,7 +331,7 @@ def simulation_runner():
     months = data['years'] * 12
     iterations = data['iterations']
     results = {}
-    results['Conditions'] = "Simulation ran for {0} iterations at {1} years per iteration".format(iterations, data['years'])
+    results['conditions'] = "Simulation ran for {0} iterations at {1} years per iteration".format(iterations, data['years'])
     for species in data['species']:
         name = species['name']
         animal_results = []
@@ -339,7 +347,7 @@ def simulation_runner():
                                       habitat['average_temperature']['fall'],
                                       habitat['average_temperature']['winter'],
                                       )
-                for gender_code in [1, 2]:  # create initial male and female
+                for gender_code in ["male", "female"]:  # create initial male and female
                     new_animal = Animal(species['name'],
                                         species['attributes']['monthly_food_consumption'],
                                         species['attributes']['monthly_water_consumption'],
@@ -353,9 +361,9 @@ def simulation_runner():
                                         )
                     environment.population.append(new_animal)
                 for month in range(months):
-                    monthly_tasks(month, environment)
+                    execute_monthly_tasks(month, environment)
                 iteration_results.append(environment)
-            animal_results.append(results_generator(species, environment, iteration_results, months, iterations))
+            animal_results.append(generate_results(species, environment, iteration_results, months, iterations))
         results[name] = animal_results
     return yaml.dump(results, default_flow_style=False)
 
